@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "ClothDeformationModelAsset.h"
 #include "OnnxModelInstance.h"
+#include "SparseMappingMatrix.h"
 #include "ClothDeformerComponent.generated.h"
 
 // Forward-declare our classes

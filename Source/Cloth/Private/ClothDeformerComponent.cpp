@@ -12,7 +12,16 @@
 #if PLATFORM_WINDOWS && PLATFORM_64BITS
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
-
+#include "DynamicMesh/DynamicMesh3.h"
+#include "MeshDescriptionToDynamicMesh.h"
+#include "IMeshMappingStrategy.h"
+#include "KnnMeshMapping.h"
+#include "SurfaceProjection.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "AssetToolsModule.h"
+#include "Factories/DataAssetFactory.h"
+#include "MeshMappingAsset.h"
 // The UClothDeformerComponent must define its destructor in the .cpp file.
 // This is required because the header file only has a forward declaration of FOnnxModelInstance.
 // The TUniquePtr<FOnnxModelInstance> member needs the full definition of FOnnxModelInstance to be able to call its destructor.
@@ -117,17 +126,7 @@ void UClothDeformerComponent::Reset()
 
 // Editor-only includes
 #if WITH_EDITOR
-#include "KnnMeshMapping.h"
-#include "SurfaceProjection.h"
-#include "MeshMappingAsset.h"
-#include "DynamicMesh/DynamicMesh3.h"
-#include "StaticMeshAttributes.h"
-#include "MeshDescriptionToDynamicMesh.h"
-#include "AssetToolsModule.h"
-#include "Factories/DataAssetFactory.h"
-#include "Misc/PackageName.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
+
 
 // Helper function to convert UStaticMesh to FDynamicMesh3
 bool ConvertStaticToDynamicMesh(UStaticMesh *InStaticMesh, UE::Geometry::FDynamicMesh3 &OutDynamicMesh)
@@ -139,7 +138,7 @@ bool ConvertStaticToDynamicMesh(UStaticMesh *InStaticMesh, UE::Geometry::FDynami
     }
 
     // Ensure we have a valid Mesh Description
-    UMeshDescription *MeshDescription = InStaticMesh->GetMeshDescription(0);
+    FMeshDescription *MeshDescription = InStaticMesh->GetMeshDescription(0);
     if (!MeshDescription)
     {
         UE_LOG(LogTemp, Error, TEXT("ConvertStaticToDynamicMesh: Failed to get Mesh Description for %s."), *InStaticMesh->GetName());
@@ -195,7 +194,6 @@ void UClothDeformerComponent::BuildMappingMatrix()
 
     UE_LOG(LogTemp, Log, TEXT("BuildMappingMatrix successful. Rows: %d, Cols: %d, NNZ: %d"), BuiltMappingMatrix.NumRow, BuiltMappingMatrix.NumCol, BuiltMappingMatrix.Value.Num());
 }
-
 void UClothDeformerComponent::SaveMappingToAsset()
 {
     // 1. Validate built data
@@ -206,31 +204,43 @@ void UClothDeformerComponent::SaveMappingToAsset()
     }
 
     // 2. Prepare for asset creation
-    FAssetToolsModule &AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+    FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 
     // Default path and name
-    FString DefaultPath = FString(TEXT("/Game/"));
+    // 使用简单的字符串拼接，避免除号运算符重载带来的歧义
+    FString DefaultPath = TEXT("/Game/");
     FString DefaultName = FString::Printf(TEXT("MM_%s_to_%s"), *testLowMesh_->GetName(), *testHighMesh_->GetName());
-    FString PackagePath, AssetName;
+    FString BasePackageName = DefaultPath + DefaultName;
+
+    FString PackagePath;
+    FString AssetName;
 
     // Create unique asset name
-    AssetToolsModule.Get().CreateUniqueAssetName(DefaultPath / DefaultName, TEXT(""), PackagePath, AssetName);
+    AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, TEXT(""), PackagePath, AssetName);
 
-    // 3. Create DataAsset Factory
-    UDataAssetFactory *Factory = NewObject<UDataAssetFactory>();
-    Factory->DataAssetClass = UMeshMappingAsset::StaticClass();
+    // 3. Create Asset 
+    // 关键修改：Factory 传 nullptr。AssetTools 会自动处理简单的 DataAsset 创建。
+    UObject* NewAsset = AssetToolsModule.Get().CreateAsset(
+        AssetName,
+        FPackageName::GetLongPackagePath(PackagePath),
+        UMeshMappingAsset::StaticClass(),
+        nullptr
+    );
 
-    // 4. Create Asset
-    UObject *NewAsset = AssetToolsModule.Get().CreateAsset(AssetName, FPackageName::GetLongPackagePath(PackagePath), UMeshMappingAsset::StaticClass(), Factory);
-    if (UMeshMappingAsset *MappingAssetRef = Cast<UMeshMappingAsset>(NewAsset))
+    if (UMeshMappingAsset* MappingAssetRef = Cast<UMeshMappingAsset>(NewAsset))
     {
-        // 5. Copy data
+        // 4. Copy data
         MappingAssetRef->MappingData = BuiltMappingMatrix;
 
-        // 6. Automatically assign it back to the component
+        // 标记资产为"脏"，这样编辑器会提示用户保存，且图标上会出现小星号
+        MappingAssetRef->MarkPackageDirty();
+
+        // 5. Automatically assign it back to the component
         this->MappingAsset = MappingAssetRef;
 
         UE_LOG(LogTemp, Log, TEXT("Successfully saved mapping matrix to asset: %s"), *MappingAssetRef->GetName());
+
+        // 显示编辑器右下角的通知
         FNotificationInfo Info(FText::FromString(FString::Printf(TEXT("Saved asset %s"), *MappingAssetRef->GetName())));
         Info.ExpireDuration = 5.0f;
         FSlateNotificationManager::Get().AddNotification(Info);
@@ -240,7 +250,6 @@ void UClothDeformerComponent::SaveMappingToAsset()
         UE_LOG(LogTemp, Error, TEXT("SaveMappingToAsset: Failed to create new UMeshMappingAsset."));
     }
 }
-
 void UClothDeformerComponent::GenerateAndSaveMappingAsset()
 {
     BuildMappingMatrix();

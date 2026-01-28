@@ -56,7 +56,17 @@ FOnnxModelInstance::FOnnxModelInstance(UClothDeformationModelAsset *InModelAsset
 
             Ort::TypeInfo typeInfo = session_->GetInputTypeInfo(0);
             auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
-            inputNodeDims_ = tensorInfo.GetShape();
+            std::vector<int64_t> OnnxShape = tensorInfo.GetShape();
+
+
+            inputNodeDims_.SetNumUninitialized(OnnxShape.size());
+
+            // 内存块拷贝
+            FMemory::Memcpy(
+                inputNodeDims_.GetData(),   // 目标地址
+                OnnxShape.data(),           // 源地址
+                OnnxShape.size() * sizeof(int64) // 字节数
+            );
 
             UE_LOG(LogTemp, Log, TEXT("Input Node: %s, Dimensions: %d"), *inputNodeName_, inputNodeDims_.Num());
         }
@@ -165,8 +175,12 @@ bool FOnnxModelInstance::Run(const TArray<float> &InputData, TArray<float> &Outp
 
 bool FOnnxModelInstance::CalculateInputTensorDimensions(int32 InInputDataSize, std::vector<int64_t> &OutActualDims) const
 {
-    OutActualDims = inputNodeDims_; // Start with the model's expected dimensions
-
+    OutActualDims.clear();
+    OutActualDims.reserve(inputNodeDims_.Num()); // 预分配内存
+    for (int64 Val : inputNodeDims_)
+    {
+        OutActualDims.push_back(Val);
+    }
     int64_t staticElementCount = 1;
     int dynamicDimIndex = -1; // Warn: 在大多数常见的深度学习模型中，通常只有一个动态维度, 如果需要支持多个动态维度, 需要修改
 

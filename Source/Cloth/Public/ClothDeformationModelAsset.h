@@ -18,6 +18,8 @@ class CLOTH_API UClothDeformationModelAsset : public UDataAsset
 	GENERATED_BODY()
 
 public:
+	UFUNCTION(CallInEditor, Category = "Actions")
+	void LoadModelData();
 #if WITH_EDITORONLY_DATA
 	// 指向.onnx模型文件的路径。使用FFilePath可以在编辑器中获得一个文件选择器。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloth Deformation Model", meta = (FilePathFilter = "ONNX Files (*.onnx)|*.onnx"))

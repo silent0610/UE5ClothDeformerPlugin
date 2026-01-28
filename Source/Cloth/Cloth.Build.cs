@@ -8,23 +8,22 @@ public class Cloth : ModuleRules
 	public Cloth(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-        
-        // 使用自己的ONNX Runtime 1.20版本
-        string OnnxRuntimePath = Path.Combine(PluginDirectory, "ThirdParty", "OnnxRuntime");
-        string includePath = Path.Combine(OnnxRuntimePath, "include");
-        PublicIncludePaths.AddRange(new string[] { includePath });
-        
-        // 链接ONNX Runtime库文件
-        string libPath = Path.Combine(OnnxRuntimePath, "lib");
-        PublicAdditionalLibraries.Add(Path.Combine(libPath, "onnxruntime_cloth.lib"));
-        
-        // 配置运行时DLL依赖
-        RuntimeDependencies.Add(Path.Combine(libPath, "onnxruntime_cloth.dll"));
-        RuntimeDependencies.Add(Path.Combine(libPath, "onnxruntime_providers_shared.dll"));
-        
-        // 配置延迟加载DLL
-        PublicDelayLoadDLLs.Add("onnxruntime_cloth.dll"));
-        PrivateIncludePaths.AddRange(
+
+		//// 使用自己的ONNX Runtime 1.20版本
+		string OnnxRuntimePath = Path.Combine(PluginDirectory, "ThirdParty", "OnnxRuntime");
+		string includePath = Path.Combine(OnnxRuntimePath, "include");
+		PublicIncludePaths.AddRange(new string[] { includePath });
+
+		// 链接ONNX Runtime库文件
+		string libPath = Path.Combine(OnnxRuntimePath, "lib");
+		PublicAdditionalLibraries.Add(Path.Combine(libPath, "onnxruntime.lib"));
+
+		//// 配置运行时DLL依赖
+		//RuntimeDependencies.Add(Path.Combine(libPath, "onnxruntime.dll"));
+		//RuntimeDependencies.Add(Path.Combine(libPath, "onnxruntime_providers_shared.dll"));
+
+
+		PrivateIncludePaths.AddRange(
 			new string[] {
 				// ... add other private include paths required here ...
 			}
@@ -39,6 +38,8 @@ public class Cloth : ModuleRules
 				"Engine",
 				"Projects",
                 "MeshDescription",
+                "Slate",
+				"SlateCore",
                 "StaticMeshDescription",
                 "GeometryCore",
                 "MeshConversion",
