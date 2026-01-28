@@ -1,0 +1,28 @@
+# Unreal Engine 5 Plugin Gitignore
+
+
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+
+
+.vs/
+.idea/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.xcodeproj
+*.workspace
+*.pdb
+onnxruntime_providers_cuda.dll
+
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# other
+UE5_ONNX_Runtime_Plugin
+gemini.md
