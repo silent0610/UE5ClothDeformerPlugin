@@ -96,3 +96,42 @@ FSparseMappingMatrix FKnnMappingStrategy::BuildMappingMatrix(const UE::Geometry:
     Mapping.SetFromTriplet(Triplets);
     return Mapping;
 }
+
+TSharedRef<SWidget> FKnnMappingStrategy::CreateSettingsWidget()
+{
+    // 这里定义 KNN 独有的参数界面
+    return SNew(SVerticalBox)
+
+        // --- 参数 K ---
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .Padding(0, 5)
+        [
+            SNew(SHorizontalBox)
+                // 标签
+                + SHorizontalBox::Slot()
+                .AutoWidth()
+                .Padding(0, 0, 10, 0)
+                .VAlign(VAlign_Center)
+                [
+                    SNew(STextBlock)
+                        .Text(FText::FromString("K Value:"))
+                        .ToolTipText(FText::FromString("Number of nearest neighbors to find"))
+                ]
+                // 输入控件
+                + SHorizontalBox::Slot()
+                .FillWidth(1.0f)
+                [
+                    SNew(SSpinBox<int32>) // 整数微调框
+                        .Value(this, &FKnnMappingStrategy::GetK) // (可选) 如果你想用 Getter
+                        .Value(k_) // 或者直接设置初始值
+                        .MinSliderValue(1)
+                        .MaxSliderValue(10)
+                        .OnValueChanged_Lambda([this](int32 NewValue)
+                            {
+                                // [核心] 当UI改变时，直接修改策略内部的成员变量
+                                this->k_ = NewValue;
+                            })
+                ]
+        ];
+}

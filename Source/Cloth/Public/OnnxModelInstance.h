@@ -38,6 +38,7 @@ public:
 	// 在实际使用中，您需要将其扩展以使其更通用。
 	bool Run(const TArray<float>& InputData, TArray<float>& OutputData);
 
+	bool Run(const TMap<FString, TArray<float>>& Inputs, TMap<FString, TArray<float>>& Outputs);
 
 private:
 	

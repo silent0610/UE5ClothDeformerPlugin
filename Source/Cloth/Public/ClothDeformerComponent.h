@@ -7,6 +7,7 @@
 #include "ClothDeformationModelAsset.h"
 #include "OnnxModelInstance.h"
 #include "SparseMappingMatrix.h"
+#include "InputAdapterBase.h"
 #include "ClothDeformerComponent.generated.h"
 
 // Forward-declare our classes
@@ -107,4 +108,10 @@ private:
 	bool bIsInitialized{false};
 	// 执行实际推理的模型的运行时实例。
 	TUniquePtr<FOnnxModelInstance> modelInstance_{nullptr};
+
+	TUniquePtr<FInputAdapterBase> InputAdapter;
+
+	TArray<float> CurrentHiddenState;
+	const int32 HiddenLayerSize = 256;
+
 };

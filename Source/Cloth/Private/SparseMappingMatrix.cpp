@@ -51,37 +51,39 @@ void FSparseMappingMatrix::SetFromTriplet(const TArray<FTriplet> &Triplets)
 		WritePos[Row] += 1;
     }
 }
-bool FSparseMappingMatrix::ApplyMapping(const TArray<FVector3f>& InHighResVertices, TArray<FVector3f>& OutLowResVertices) const
+
+// TODO  修改为从低模映射到低模
+bool FSparseMappingMatrix::ApplyMapping(const TArray<FVector>& InLowResOffsets, TArray<FVector>& OutHighResOffsets) const
 {
-    if (InHighResVertices.Num() != NumCol)
-    {
-        UE_LOG(LogTemp, Error, TEXT("ApplyMapping: Input vertex count (%d) mismatch. Matrix requires %d."), InHighResVertices.Num(), NumCol);
-        return false;
-    }
+    //if (InHighResVertices.Num() != NumCol)
+    //{
+    //    UE_LOG(LogTemp, Error, TEXT("ApplyMapping: Input vertex count (%d) mismatch. Matrix requires %d."), InHighResVertices.Num(), NumCol);
+    //    return false;
+    //}
 
-    OutLowResVertices.SetNumUninitialized(NumRow);
+    //OutLowResVertices.SetNumUninitialized(NumRow);
 
-    // TODO 并行
-    for (int32 i = 0; i < NumRow; ++i) // 遍历低模的每一个顶点 (矩阵的每一行)
-    {
-        const int32 RowStart = RowPtr[i];     // 第 i 行的起始索引
-        const int32 RowEnd = RowPtr[i + 1];   // 第 i 行的结束索引
+    //// TODO 并行
+    //for (int32 i = 0; i < NumRow; ++i) // 遍历低模的每一个顶点 (矩阵的每一行)
+    //{
+    //    const int32 RowStart = RowPtr[i];     // 第 i 行的起始索引
+    //    const int32 RowEnd = RowPtr[i + 1];   // 第 i 行的结束索引
 
-        FVector3f NewLowResPos = FVector3f::ZeroVector;
+    //    FVector3f NewLowResPos = FVector3f::ZeroVector;
 
-        // 遍历第 i 行的所有非零元素 (M_ij)
-        for (int32 k = RowStart; k < RowEnd; ++k)
-        {
-            const float Weight = Value[k];
-            const int32 HighResIndex = ColIndice[k];
+    //    // 遍历第 i 行的所有非零元素 (M_ij)
+    //    for (int32 k = RowStart; k < RowEnd; ++k)
+    //    {
+    //        const float Weight = Value[k];
+    //        const int32 HighResIndex = ColIndice[k];
 
-            // 增加鲁棒性：确保高模索引不会越界
-            if (HighResIndex >= 0 && HighResIndex < InHighResVertices.Num())
-            {
-                NewLowResPos += InHighResVertices[HighResIndex] * Weight;
-            }
-        }
-        OutLowResVertices[i] = NewLowResPos;
-    }
-    return true;
+    //        // 增加鲁棒性：确保高模索引不会越界
+    //        if (HighResIndex >= 0 && HighResIndex < InHighResVertices.Num())
+    //        {
+    //            NewLowResPos += InHighResVertices[HighResIndex] * Weight;
+    //        }
+    //    }
+    //    OutLowResVertices[i] = NewLowResPos;
+    //}
+    //return true;
 }

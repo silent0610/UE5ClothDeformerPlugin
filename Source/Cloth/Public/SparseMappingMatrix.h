@@ -37,10 +37,7 @@ public:
      * (O(N) 算法实现)
      */
     void SetFromTriplet(const TArray<FTriplet> &Triplets);
-    /**
-     * @brief 运行时核心运算：应用映射 (X_low = M * X_high)
-     * @param InHighResVertices (X_high) GNN输出的高模顶点
-     * @param OutLowResVertices (X_low) 映射生成的低模顶点
-     */
-    bool ApplyMapping(const TArray<FVector3f> &InHighResVertices, TArray<FVector3f> &OutLowResVertices) const;
+
+    // TODO  修改为从低模映射到低模
+    bool ApplyMapping(const TArray<FVector>& InLowResOffsets, TArray<FVector>& OutHighResOffsets) const;
 };

@@ -10,6 +10,14 @@ public:
 
     virtual FSparseMappingMatrix BuildMappingMatrix(const UE::Geometry::FDynamicMesh3 *HighPloyMesh, const UE::Geometry::FDynamicMesh3 *LowPolyMesh) override;
 
+    virtual bool GenerateMapping(
+        const USkeletalMesh* LowPoly,
+        const USkeletalMesh* HighPoly,
+        UMeshMappingAsset* OutAsset
+    ) override;
+
+    virtual TSharedRef<SWidget> CreateSettingsWidget() override;
+
     virtual FString GetStrategyName() const override;
 
 private:
