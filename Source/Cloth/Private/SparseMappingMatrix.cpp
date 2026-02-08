@@ -55,6 +55,7 @@ void FSparseMappingMatrix::SetFromTriplet(const TArray<FTriplet> &Triplets)
 // TODO  修改为从低模映射到低模
 bool FSparseMappingMatrix::ApplyMapping(const TArray<FVector>& InLowResOffsets, TArray<FVector>& OutHighResOffsets) const
 {
+    return false;
     //if (InHighResVertices.Num() != NumCol)
     //{
     //    UE_LOG(LogTemp, Error, TEXT("ApplyMapping: Input vertex count (%d) mismatch. Matrix requires %d."), InHighResVertices.Num(), NumCol);

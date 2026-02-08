@@ -43,6 +43,11 @@ public class Cloth : ModuleRules
                 "StaticMeshDescription",
                 "GeometryCore",
                 "MeshConversion",
+                "InputCore",
+                "EditorStyle",
+                "PropertyEditor",
+                "UnrealEd",
+                "AssetTools"
 				
 				// ... add other public dependencies that you statically link with here ...
 			}

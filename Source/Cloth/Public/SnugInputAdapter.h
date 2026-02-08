@@ -14,7 +14,7 @@
 class CLOTH_API FSnugInputAdapter : public FInputAdapterBase
 {
 public:
-    FSnugInputAdapter() = default;
+    FSnugInputAdapter();
     virtual void Initialize(USkeletalMeshComponent* InSkelMeshComp) override;
     virtual TMap<FString, TArray<float>> ExtractInputs(float DeltaTime) override;
     virtual void Reset() override;

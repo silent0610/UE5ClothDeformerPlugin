@@ -9,4 +9,11 @@ class FSurfaceProjection : public IMeshMappingStrategy
         const UE::Geometry::FDynamicMesh3 *HighPolyMesh,
         const UE::Geometry::FDynamicMesh3 *LowPolyMesh) override;
     virtual FString GetStrategyName() const override;
+    virtual bool GenerateMapping(
+        const USkeletalMesh* LowPoly,
+        const USkeletalMesh* HighPoly,
+        UMeshMappingAsset* OutAsset
+    ) override;
+
+    virtual TSharedRef<SWidget> CreateSettingsWidget() override;
 };

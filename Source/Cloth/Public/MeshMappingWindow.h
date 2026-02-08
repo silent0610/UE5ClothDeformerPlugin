@@ -13,7 +13,7 @@ class SEditableTextBox;
  * SMeshMappingWindow
  * 负责渲染烘焙工具的 UI 界面
  */
-class CLOTHEDITOR_API SMeshMappingWindow : public SCompoundWidget
+class CLOTH_API SMeshMappingWindow : public SCompoundWidget // TODO 后续需要迁移到 Editor module 中
 {
 public:
     SLATE_BEGIN_ARGS(SMeshMappingWindow) {}

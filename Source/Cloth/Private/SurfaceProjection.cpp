@@ -58,3 +58,31 @@ FSparseMappingMatrix FSurfaceProjection::BuildMappingMatrix(const FDynamicMesh3 
     ResultMatrix.SetFromTriplet(Triplets);
     return ResultMatrix;
 }
+
+bool FSurfaceProjection::GenerateMapping(
+    const USkeletalMesh* LowPoly,
+    const USkeletalMesh* HighPoly,
+    UMeshMappingAsset* OutAsset
+) {
+    return false;
+};
+TSharedRef<SWidget> FSurfaceProjection::CreateSettingsWidget() {
+    return SNew(SVerticalBox)
+
+        + SVerticalBox::Slot()
+        .AutoHeight()
+        .Padding(0, 5)
+        [
+            SNew(SHorizontalBox)
+                // 标签
+                + SHorizontalBox::Slot()
+                .AutoWidth()
+                .Padding(0, 0, 10, 0)
+                .VAlign(VAlign_Center)
+                [
+                    SNew(STextBlock)
+                        .Text(FText::FromString("K Value:"))
+                        .ToolTipText(FText::FromString("Number of nearest neighbors to find"))
+                ]
+        ];
+};

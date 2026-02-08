@@ -2,7 +2,7 @@
 
 #include "SparseMappingMatrix.h" // FTriplet, FSparseMappingMatrix
 #include "DynamicMesh/DynamicMesh3.h"
-
+#include "Widgets/Input/SSpinBox.h"
 
 #include "Spatial/PointHashGrid3.h"
 
@@ -97,6 +97,15 @@ FSparseMappingMatrix FKnnMappingStrategy::BuildMappingMatrix(const UE::Geometry:
     return Mapping;
 }
 
+bool FKnnMappingStrategy::GenerateMapping(
+    const USkeletalMesh* LowPoly,
+    const USkeletalMesh* HighPoly,
+    UMeshMappingAsset* OutAsset
+)
+{
+    return false;
+}
+
 TSharedRef<SWidget> FKnnMappingStrategy::CreateSettingsWidget()
 {
     // 这里定义 KNN 独有的参数界面
@@ -123,7 +132,6 @@ TSharedRef<SWidget> FKnnMappingStrategy::CreateSettingsWidget()
                 .FillWidth(1.0f)
                 [
                     SNew(SSpinBox<int32>) // 整数微调框
-                        .Value(this, &FKnnMappingStrategy::GetK) // (可选) 如果你想用 Getter
                         .Value(k_) // 或者直接设置初始值
                         .MinSliderValue(1)
                         .MaxSliderValue(10)
