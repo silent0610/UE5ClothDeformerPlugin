@@ -33,23 +33,7 @@ public class Cloth : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
-				"CoreUObject",
-				"Engine",
-				"Projects",
-                "MeshDescription",
-                "Slate",
-				"SlateCore",
-                "StaticMeshDescription",
-                "GeometryCore",
-                "MeshConversion",
-                "InputCore",
-                "EditorStyle",
-                "PropertyEditor",
-                "UnrealEd",
-                "AssetTools"
-				
-				// ... add other public dependencies that you statically link with here ...
+				"Core"
 			}
 			);
 		PublicSystemLibraries.AddRange(new string[] { "dxcore.lib", "directml.lib" });	
@@ -58,9 +42,7 @@ public class Cloth : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Engine",
-				"Slate",
-				"SlateCore",
+                "Engine"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

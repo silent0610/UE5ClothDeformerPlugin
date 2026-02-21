@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "SparseMappingMatrix.generated.h" // 假设文件名
 
-struct FTriplet
+struct CLOTH_API FTriplet
 {
     int32 Row{}; // 低模顶点索引
     int32 Col{}; // 高模顶点索引
@@ -12,7 +12,7 @@ struct FTriplet
 };
 
 USTRUCT(BlueprintType)
-struct FSparseMappingMatrix
+struct CLOTH_API FSparseMappingMatrix
 {
     GENERATED_BODY()
 
@@ -39,5 +39,5 @@ public:
     void SetFromTriplet(const TArray<FTriplet> &Triplets);
 
     // TODO  修改为从低模映射到低模
-    bool ApplyMapping(const TArray<FVector>& InLowResOffsets, TArray<FVector>& OutHighResOffsets) const;
+    bool ApplyMapping(const TArray<FVector> &InLowResOffsets, TArray<FVector> &OutHighResOffsets) const;
 };

@@ -15,13 +15,6 @@ class UClothDeformationModelAsset;
 class FOnnxModelInstance;
 
 
-UENUM(BlueprintType)
-enum class EMappingStrategyType : uint8
-{
-	KNN UMETA(DisplayName = "KNN (K-Nearest Neighbors)"),
-	SurfaceProjection UMETA(DisplayName = "Surface Projection (AABB)")
-};
-
 /**
  * UClothDeformerComponent
  * 一个ActorComponent，为ONNX模型推理提供了易于使用的接口。
@@ -73,33 +66,6 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cloth Deformer|Debug")
 	TArray<float> TestOutputArray;
 	
-	// --- Editor Only: Mapping Generation ---
-
-	// 用于测试MeshMapping的低分辨率网格模型
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Mapping|Source")
-	UStaticMesh *testLowMesh_{nullptr};
-
-	// 用于测试MeshMapping的高分辨率网格模型
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Mapping|Source")
-	UStaticMesh *testHighMesh_{nullptr};
-	
-	// 选择用于构建映射的策略
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Mapping|Source")
-	EMappingStrategyType MappingStrategy = EMappingStrategyType::KNN;
-
-	// 临时存储计算出的映射矩阵，不会被保存。
-	UPROPERTY(VisibleInstanceOnly, Transient, Category = "Mesh Mapping|Result")
-	FSparseMappingMatrix BuiltMappingMatrix;
-
-	UFUNCTION(CallInEditor, Category = "Mesh Mapping|Actions")
-	void BuildMappingMatrix();
-
-	UFUNCTION(CallInEditor, Category = "Mesh Mapping|Actions")
-	void SaveMappingToAsset();
-
-    UFUNCTION(CallInEditor, Category = "Mesh Mapping|Actions")
-    void GenerateAndSaveMappingAsset();
-
 	// 重置模型和清理资源
 	UFUNCTION(BlueprintCallable, Category = "Cloth Deformer")
 	void Reset();

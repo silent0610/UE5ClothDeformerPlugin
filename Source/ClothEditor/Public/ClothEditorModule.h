@@ -9,6 +9,9 @@ public:
     virtual void StartupModule() override;
     virtual void ShutdownModule() override;
 
+private:
+    // 当用户在菜单栏点击工具时，引擎会调用这个函数来生成并返回窗口
+    TSharedRef<SDockTab> OnSpawnPluginTab(const FSpawnTabArgs &SpawnTabArgs);
 };
 /*
 这是一个非常明智的决定。在进行物理文件移动之前，先明确 **ClothEditor（编辑器模块）** 的职责蓝图，可以让你对架构有更清晰的掌控。

@@ -10,6 +10,7 @@ public class ClothEditor : ModuleRules
             new string[]
             {
                 "Core",
+                "Cloth"
             }
         );
 
@@ -30,9 +31,8 @@ public class ClothEditor : ModuleRules
                 "EditorStyle",     // 用于编辑器图标和样式
                 "PropertyEditor",  // 用于 SObjectPropertyEntryBox
                 "GeometryCore",    // 用于几何计算 (DynamicMesh)
+                "WorkspaceMenuStructure",// 顶部菜单栏
                 
-                // 依赖你的 Runtime 模块
-                "Cloth" 
             }
         );
     }

@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NameTypes.h" // For FString
-#include "Widgets/SWidget.h" // ²ßÂÔĞèÒª·µ»Ø UI ×é¼ş
+#include "Widgets/SWidget.h" // ç­–ç•¥éœ€è¦è¿”å› UI ç»„ä»¶
 
 class USkeletalMesh;
 class UMeshMappingAsset;
