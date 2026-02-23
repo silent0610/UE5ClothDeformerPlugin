@@ -3,8 +3,9 @@
 #include "SparseMappingMatrix.h" // FTriplet, FSparseMappingMatrix
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Widgets/Input/SSpinBox.h"
-
+#include "MeshDescriptionToDynamicMesh.h"
 #include "Spatial/PointHashGrid3.h"
+#include "MeshMappingAsset.h"
 
 FKnnMappingStrategy::FKnnMappingStrategy(int32 k)
     : k_(k), kEpsilon_(1e-8f)
@@ -18,83 +19,86 @@ FString FKnnMappingStrategy::GetStrategyName() const
 
 FSparseMappingMatrix FKnnMappingStrategy::BuildMappingMatrix(const UE::Geometry::FDynamicMesh3 *HighPolyMesh, const UE::Geometry::FDynamicMesh3 *LowPolyMesh)
 {
-    FSparseMappingMatrix Mapping(LowPolyMesh->MaxVertexID(), HighPolyMesh->MaxVertexID());
-    TArray<FTriplet> Triplets;
-    Triplets.Reserve(LowPolyMesh->VertexCount() * k_);
+    // [修正] Row 必须是高模顶点数，Col 必须是低模顶点数
+    FSparseMappingMatrix mappingMatrix(HighPolyMesh->MaxVertexID(), LowPolyMesh->MaxVertexID());
+    TArray<FTriplet> triplets;
+    triplets.Reserve(HighPolyMesh->VertexCount() * k_);
 
-    // --- Step 1. 建立空间索引 ---
-    // 自动推导CellSize
-    FBox Bounds = FBox(EForceInit::ForceInit);
-    for (int32 VtxID : HighPolyMesh->VertexIndicesItr())
+    // --- Step 1. 在【低模】上建立空间索引 (我们要去低模里找点) ---
+    FBox bounds = FBox(EForceInit::ForceInit);
+    for (int32 vtxId : LowPolyMesh->VertexIndicesItr())
     {
-        Bounds += (FVector)HighPolyMesh->GetVertex(VtxID);
-    }
-    const double Diagonal = (Bounds.Max - Bounds.Min).Length();
-    const double CellSize = Diagonal / FMath::Sqrt(static_cast<double>(HighPolyMesh->VertexCount()));
-
-    UE::Geometry::TPointHashGrid3<int32, double> Grid(CellSize, -1);
-    Grid.Reserve(HighPolyMesh->VertexCount());
-
-    for (int32 VtxID : HighPolyMesh->VertexIndicesItr())
-    {
-        FVector3d Pos = HighPolyMesh->GetVertex(VtxID);
-        Grid.InsertPointUnsafe(VtxID, Pos);
+        bounds += (FVector)LowPolyMesh->GetVertex(vtxId);
     }
 
-    // --- Step 2. 查询K近邻并计算权重 ---
-    for (int32 LowID : LowPolyMesh->VertexIndicesItr())
+    const double diagonal = (bounds.Max - bounds.Min).Length();
+    const double cellSize = diagonal / FMath::Sqrt(static_cast<double>(LowPolyMesh->VertexCount()));
+
+    UE::Geometry::TPointHashGrid3<int32, double> grid(cellSize, -1);
+    grid.Reserve(LowPolyMesh->VertexCount());
+
+    for (int32 vtxId : LowPolyMesh->VertexIndicesItr())
     {
-        FVector3d QueryPos = LowPolyMesh->GetVertex(LowID);
+        FVector3d pos = LowPolyMesh->GetVertex(vtxId);
+        grid.InsertPointUnsafe(vtxId, pos);
+    }
 
-        TArray<int32> Neighbors;
-        TArray<double> DistSq;
-        Neighbors.Reserve(k_);
+    // --- Step 2. 遍历【高模】查询K近邻并计算权重 ---
+    for (int32 highId : HighPolyMesh->VertexIndicesItr())
+    {
+        FVector3d queryPos = HighPolyMesh->GetVertex(highId);
 
-        // 逐步扩大搜索半径直到找到足够邻居
-        double Radius = CellSize;
-        while (Neighbors.Num() < k_ && Radius < Diagonal)
+        TArray<int32> neighbors;
+        TArray<double> distSq;
+        neighbors.Reserve(k_);
+
+        double radius = cellSize;
+        while (neighbors.Num() < k_ && radius < diagonal)
         {
-            Grid.EnumeratePointsInBall(QueryPos, Radius,
-                [&](int32 HighID) {
-                    return (QueryPos - (FVector3d)HighPolyMesh->GetVertex(HighID)).SquaredLength();
+            grid.EnumeratePointsInBall(queryPos, radius,
+                [&](int32 lowId) {
+                    return (queryPos - (FVector3d)LowPolyMesh->GetVertex(lowId)).SquaredLength();
                 },
-                [&](int32 HighID, double D2) {
-                    if (Neighbors.Num() < k_)
+                [&](int32 lowId, double d2) {
+                    if (neighbors.Num() < k_)
                     {
-                        Neighbors.Add(HighID);
-                        DistSq.Add(D2);
+                        neighbors.Add(lowId);
+                        distSq.Add(d2);
                         return true; // continue
                     }
                     return false;
                 });
-            Radius *= 2.0;
+            radius *= 2.0;
         }
 
-        if (Neighbors.Num() == 0)
+        if (neighbors.Num() == 0)
+        {
             continue;
+        }
 
         // --- Step 3. 计算归一化权重 ---
-        double SumW = 0;
-        TArray<double> Weights;
-        Weights.Reserve(Neighbors.Num());
+        double sumW = 0;
+        TArray<double> weights;
+        weights.Reserve(neighbors.Num());
 
-        for (double D2 : DistSq)
+        for (double d2 : distSq)
         {
-            double W = 1.0 / (D2 + kEpsilon_);
-            Weights.Add(W);
-            SumW += W;
+            double w = 1.0 / (d2 + kEpsilon_);
+            weights.Add(w);
+            sumW += w;
         }
 
-        for (int32 j = 0; j < Neighbors.Num(); ++j)
+        for (int32 j = 0; j < neighbors.Num(); ++j)
         {
-            float Normalized = static_cast<float>(Weights[j] / SumW);
-            Triplets.Emplace(LowID, Neighbors[j], Normalized);
+            float normalized = static_cast<float>(weights[j] / sumW);
+            // [修正] Row = 高模索引, Col = 低模索引, Value = 权重
+            triplets.Emplace(highId, neighbors[j], normalized);
         }
     }
 
     // --- Step 4. 构建CSR矩阵 ---
-    Mapping.SetFromTriplet(Triplets);
-    return Mapping;
+    mappingMatrix.SetFromTriplet(triplets);
+    return mappingMatrix;
 }
 
 bool FKnnMappingStrategy::GenerateMapping(
@@ -103,7 +107,39 @@ bool FKnnMappingStrategy::GenerateMapping(
     UMeshMappingAsset* OutAsset
 )
 {
-    return false;
+    // 1. 基本安全检查
+    if (!LowPoly || !HighPoly || !OutAsset)
+    {
+        return false;
+    }
+
+    // 2. 从 SkeletalMesh 获取 LOD0 的基础网格描述 (MeshDescription)
+    // 只有在 Editor 模块中才可以这样直接读取
+    const FMeshDescription* lowDesc = LowPoly->GetMeshDescription(0);
+    const FMeshDescription* highDesc = HighPoly->GetMeshDescription(0);
+
+    if (!lowDesc || !highDesc)
+    {
+        return false;
+    }
+
+    // 3. 将 MeshDescription 转换为 GeometryCore 的 FDynamicMesh3
+    UE::Geometry::FDynamicMesh3 lowDynMesh;
+    FMeshDescriptionToDynamicMesh lowConverter;
+    lowConverter.Convert(lowDesc, lowDynMesh);
+
+    UE::Geometry::FDynamicMesh3 highDynMesh;
+    FMeshDescriptionToDynamicMesh highConverter;
+    highConverter.Convert(highDesc, highDynMesh);
+
+    // 4. 调用核心算法计算映射矩阵
+    FSparseMappingMatrix computedMatrix = BuildMappingMatrix(&highDynMesh, &lowDynMesh);
+
+    // 5. 将结果写入资产，并标记为“已修改”(带上星号)，提示用户保存
+    OutAsset->MappingData = computedMatrix;
+    OutAsset->MarkPackageDirty();
+
+    return true;
 }
 
 TSharedRef<SWidget> FKnnMappingStrategy::CreateSettingsWidget()

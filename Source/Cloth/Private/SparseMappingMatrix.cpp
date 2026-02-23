@@ -8,83 +8,79 @@ FSparseMappingMatrix::FSparseMappingMatrix(int32 InRow, int32 InCol) : NumRow(In
 }
 void FSparseMappingMatrix::SetFromTriplet(const TArray<FTriplet> &Triplets)
 {
-    if (NumRow <= 0)
-    {
-        return;
-    }
+    int32 numNonZeros = Triplets.Num();
 
-    const int32 NumNonZero{Triplets.Num()};
+    // 预分配空间
+    ColIndice.SetNumUninitialized(numNonZeros);
+    Value.SetNumUninitialized(numNonZeros);
 
-    // 计数
-    TArray<int32> RowCount{};
-    RowCount.AddZeroed(NumRow);
-    for (int32 k{0}; k< NumNonZero; ++k)
+    // RowPtrs 大小必须是 NumRows + 1，初始全为0
+    RowPtr.Init(0, NumRow + 1);
+
+    // 第一步：统计每一行有多少个非零元素
+    for (const FTriplet& triplet : Triplets)
     {
-        if (Triplets[k].Row >= 0 && Triplets[k].Row < NumRow)
+        // triplet.Row 必须在合法范围内
+        if (triplet.Row >= 0 && triplet.Row < NumRow)
         {
-            RowCount[Triplets[k].Row] += 1;
+            RowPtr[triplet.Row + 1]++;
         }
     }
 
-    RowPtr.Empty(NumRow + 1);
-    RowPtr.Add(0);
-    int32 CumulativeCount{0};
-    for (int32 i{0}; i < NumRow; ++i)
+    // 第二步：计算前缀和，将 RowPtrs 转化为真正的偏移量索引
+    for (int32 i = 0; i < NumRow; ++i)
     {
-        CumulativeCount += RowCount[i];
-        RowPtr.Add(CumulativeCount);
+        RowPtr[i + 1] += RowPtr[i];
     }
 
-    Value.Empty(NumNonZero);
-	Value.AddUninitialized(NumNonZero);
-    ColIndice.Empty(NumNonZero);
-	ColIndice.AddUninitialized(NumNonZero);
-
-    TArray<int32> WritePos{ RowPtr };
-    for (int32 k{ 0 }; k < NumNonZero; ++k)
+    // 第三步：填充 ColIndices 和 Values 数据
+    // 使用 currentRowOffsets 来记录当前行写到了哪个位置
+    TArray<int32> currentRowOffsets = RowPtr;
+    for (const FTriplet& triplet : Triplets)
     {
-        const FTriplet &Triplet = Triplets[k];
-        const int32 Row = Triplet.Row;
-        const int32 DestPos = WritePos[Row];
-        ColIndice[DestPos] = Triplet.Col;
-        Value[DestPos] = Triplet.Value;
-		WritePos[Row] += 1;
+        if (triplet.Row >= 0 && triplet.Row < NumRow)
+        {
+            int32 insertIndex = currentRowOffsets[triplet.Row]++;
+            ColIndice[insertIndex] = triplet.Col;
+            Value[insertIndex] = triplet.Value;
+        }
     }
 }
 
-// TODO  修改为从低模映射到低模
+// 从低模映射到低模
 bool FSparseMappingMatrix::ApplyMapping(const TArray<FVector>& InLowResOffsets, TArray<FVector>& OutHighResOffsets) const
 {
-    return false;
-    //if (InHighResVertices.Num() != NumCol)
-    //{
-    //    UE_LOG(LogTemp, Error, TEXT("ApplyMapping: Input vertex count (%d) mismatch. Matrix requires %d."), InHighResVertices.Num(), NumCol);
-    //    return false;
-    //}
+    // 1. 安全检查：输入的低模位移数量，必须精确等于矩阵的列数 (NumCol)
+    if (InLowResOffsets.Num() != NumCol)
+    {
+        return false;
+    }
 
-    //OutLowResVertices.SetNumUninitialized(NumRow);
+    // 2. 初始化输出数组：大小设为高模顶点数 (NumRow)，并全部填充为 0
+    OutHighResOffsets.Init(FVector::ZeroVector, NumRow);
 
-    //// TODO 并行
-    //for (int32 i = 0; i < NumRow; ++i) // 遍历低模的每一个顶点 (矩阵的每一行)
-    //{
-    //    const int32 RowStart = RowPtr[i];     // 第 i 行的起始索引
-    //    const int32 RowEnd = RowPtr[i + 1];   // 第 i 行的结束索引
+    // 3. 核心计算：遍历高模的每一个顶点（矩阵的每一行）
+    for (int32 row = 0; row < NumRow; ++row)
+    {
+        FVector accumulatedOffset = FVector::ZeroVector;
 
-    //    FVector3f NewLowResPos = FVector3f::ZeroVector;
+        // [第1步：查字典] 获取当前行在 ColIndice 和 Value 数组中的起止范围
+        const int32 startIdx = RowPtr[row];
+        const int32 endIdx = RowPtr[row + 1];
 
-    //    // 遍历第 i 行的所有非零元素 (M_ij)
-    //    for (int32 k = RowStart; k < RowEnd; ++k)
-    //    {
-    //        const float Weight = Value[k];
-    //        const int32 HighResIndex = ColIndice[k];
+        // [第2步：顺藤摸瓜] 遍历影响该高模顶点的所有低模顶点数据
+        for (int32 i = startIdx; i < endIdx; ++i)
+        {
+            const int32 col = ColIndice[i];
+            const float weight = Value[i];
 
-    //        // 增加鲁棒性：确保高模索引不会越界
-    //        if (HighResIndex >= 0 && HighResIndex < InHighResVertices.Num())
-    //        {
-    //            NewLowResPos += InHighResVertices[HighResIndex] * Weight;
-    //        }
-    //    }
-    //    OutLowResVertices[i] = NewLowResPos;
-    //}
-    //return true;
+            // [第3步：加权求和] 低模顶点的位移 * 对应的权重
+            accumulatedOffset += InLowResOffsets[col] * weight;
+        }
+
+        // 将计算出的最终总位移，写入对应的输出位置
+        OutHighResOffsets[row] = accumulatedOffset;
+    }
+
+    return true;
 }

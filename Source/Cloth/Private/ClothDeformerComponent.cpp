@@ -135,4 +135,26 @@ void UClothDeformerComponent::TickComponent(float DeltaTime, ELevelTick TickType
             UE_LOG(LogTemp, Warning, TEXT("RunInference failed in TickComponent."));
         }
     }
+    //// 1. 获取输入
+    //TArray<float> ModelInputs;
+    //InputAdapter->ExtractInputs(ModelInputs);
+
+    //// 2. 运行推理 (拿到低模偏移)
+    //TArray<float> LowResOffsetsRaw;
+    //modelInstance_->Run(ModelInputs, CurrentHiddenState, LowResOffsetsRaw);
+
+    //// 3. 映射到高模
+    //TArray<FVector> HighResOffsets;
+    //// (此处需将 LowResOffsetsRaw 转换为 FVector 数组)
+    //MappingAsset->MappingData.ApplyMapping(LowResLowResVectors, HighResOffsets);
+
+    //// 4. [新增工作] 直接在这里应用到网格
+    //UDynamicMeshComponent* TargetMesh = GetOwner()->FindComponentByClass<UDynamicMeshComponent>();
+    //if (TargetMesh)
+    //{
+    //    // 假设使用 DynamicMesh，直接更新顶点
+    //    // (伪代码：将 HighResOffsets 加到 BasePose 上并通知更新)
+    //    UpdateDynamicMesh(TargetMesh, HighResOffsets);
+    //}
+
 }

@@ -32,7 +32,7 @@ public class ClothEditor : ModuleRules
                 "PropertyEditor",  // 用于 SObjectPropertyEntryBox
                 "GeometryCore",    // 用于几何计算 (DynamicMesh)
                 "WorkspaceMenuStructure",// 顶部菜单栏
-                
+                "MeshConversion"
             }
         );
     }
