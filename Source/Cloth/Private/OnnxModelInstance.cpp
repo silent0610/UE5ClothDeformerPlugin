@@ -105,6 +105,147 @@ bool FOnnxModelInstance::IsInitialized() const
 {
     return bIsInitialized_;
 }
+bool FOnnxModelInstance::Run(const TMap<FString, TArray<float>>& Inputs, TArray<float>& HiddenState, TMap<FString, TArray<float>>& Outputs)
+{
+    if (!bIsInitialized_ || !session_)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Run: Model not initialized."));
+        return false;
+    }
+    try
+    {
+        Ort::AllocatorWithDefaultOptions Allocator{};
+        size_t NumInputs = session_->GetInputCount();
+        std::vector<const char*> InputNames;
+        std::vector<Ort::AllocatedStringPtr> inputNamePtrs;
+        std::vector<Ort::Value> InputTensors;
+        
+        for (size_t i = 0; i < NumInputs; ++i)
+        {
+            auto NamePtr = session_->GetInputNameAllocated(i, Allocator);
+            FString inputNameStr(UTF8_TO_TCHAR(NamePtr.get()));
+            
+            InputNames.push_back(NamePtr.get());
+            inputNamePtrs.push_back(std::move(NamePtr));
+
+            const TArray<float>* sourceData = nullptr;
+
+            if (Inputs.Contains(inputNameStr))
+            {
+                sourceData = &Inputs[inputNameStr];
+            }
+            else
+            {
+                // 如果在 Inputs 字典里找不到，默认当作 HiddenState 喂给模型
+                sourceData = &HiddenState;
+            }
+
+            auto typeInfo = session_->GetInputTypeInfo(i);
+            auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
+            std::vector<int64_t> dims = tensorInfo.GetShape();
+
+            int64_t knownSize = 1;
+            int32 dynamicIndex = -1;
+            for (size_t j = 0; j < dims.size(); ++j)
+            {
+                if (dims[j] <= 0)
+                {
+                    dynamicIndex = static_cast<int32>(j);
+                }
+                else
+                {
+                    knownSize *= dims[j];
+                }
+            }
+            // TODO 只能处理单一动态温度
+            // 如果存在 -1 这样的动态维度，通过传入的数组总长反推真实大小
+            if (dynamicIndex != -1 && knownSize > 0)
+            {
+                dims[dynamicIndex] = sourceData->Num() / knownSize;
+                if (dims[dynamicIndex] <= 0)
+                {
+                    dims[dynamicIndex] = 1; // 兜底保护，防止除零或负数
+                }
+            }
+
+            // 如果是第一帧，HiddenState 是空的，需要根据模型要求的尺寸初始化填充0
+            if (sourceData == &HiddenState && HiddenState.Num() == 0)
+            {
+                int64_t totalElements = 1;
+                for (int64_t dim : dims)
+                {
+                    totalElements *= dim;
+                }
+                HiddenState.Init(0.0f, static_cast<int32>(totalElements));
+            }
+
+            Ort::Value tensor{ nullptr };
+            if (!CreateInputTensor(*sourceData, dims, tensor))
+            {
+                UE_LOG(LogTemp, Error, TEXT("Run: Failed to create tensor for input %s"), *inputNameStr);
+                return false;
+            }
+            InputTensors.push_back(std::move(tensor));
+        }
+        
+        // 准备输出节点名称
+        size_t numOutputs = session_->GetOutputCount();
+        std::vector<const char*> outputNames;
+        std::vector<Ort::AllocatedStringPtr> outputNamePtrs;
+
+        for (size_t i = 0; i < numOutputs; ++i)
+        {
+            auto namePtr = session_->GetOutputNameAllocated(i, Allocator);
+            outputNames.push_back(namePtr.get());
+            outputNamePtrs.push_back(std::move(namePtr));
+        }
+
+        // 执行推理
+
+        auto outputTensors = session_->Run(
+            Ort::RunOptions{ nullptr },
+            InputNames.data(),
+            InputTensors.data(),
+            InputTensors.size(),
+            outputNames.data(),
+            outputNames.size()
+        );
+
+        // 提取并分配输出
+        Outputs.Empty();
+        for (size_t i = 0; i < numOutputs; ++i)
+        {
+            FString outputNameStr(UTF8_TO_TCHAR(outputNames[i]));
+            TArray<float> outData;
+
+            if (outputTensors[i].IsTensor() && ExtractOutputTensorData(outputTensors[i], outData))
+            {
+                // 启发式分配：如果模型的输出节点名字里带有 state/hidden/hx 等字眼，
+                // 认定它是用于下一帧的隐藏状态，直接更新到 HiddenState 中。
+                if (outputNameStr.Contains(TEXT("state"), ESearchCase::IgnoreCase) ||
+                    outputNameStr.Contains(TEXT("hidden"), ESearchCase::IgnoreCase) ||
+                    outputNameStr.Contains(TEXT("hx"), ESearchCase::IgnoreCase))
+                {
+                    HiddenState = outData;
+                }
+                else
+                {
+                    // 普通输出（如预测的顶点位移），放入字典供外部提取
+                    Outputs.Add(outputNameStr, outData);
+                }
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Run: Failed to extract output %s"), *outputNameStr);
+            }
+        }
+    }
+    catch (const Ort::Exception& e)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Run: ONNX Runtime error: %s"), UTF8_TO_TCHAR(e.what()));
+    }
+    return false;
+}
 
 bool FOnnxModelInstance::Run(const TArray<float> &InputData, TArray<float> &OutputData)
 {

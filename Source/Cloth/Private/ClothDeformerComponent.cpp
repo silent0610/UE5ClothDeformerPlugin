@@ -103,7 +103,18 @@ bool UClothDeformerComponent::RunInference(const TArray<float> &InputData, TArra
         return false;
     return modelInstance_->Run(InputData, OutputData);
 }
+bool UClothDeformerComponent::RunInference(const TMap<FString, TArray<float>>& InputData, TArray<float>& HiddenState, TMap<FString, TArray<float>>& OutputData)
+{
+    if (!IsInitialized())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("RunInference called but component is not initialized"));
+        return false;
+    }
 
+    if (!modelInstance_)
+        return false;
+    return modelInstance_->Run(InputData,HiddenState, OutputData);
+}
 bool UClothDeformerComponent::IsInitialized() const
 {
     return bIsInitialized && modelInstance_ && modelInstance_->IsInitialized();
@@ -135,13 +146,14 @@ void UClothDeformerComponent::TickComponent(float DeltaTime, ELevelTick TickType
             UE_LOG(LogTemp, Warning, TEXT("RunInference failed in TickComponent."));
         }
     }
-    //// 1. 获取输入
-    //TArray<float> ModelInputs;
-    //InputAdapter->ExtractInputs(ModelInputs);
+    // 1. 获取输入
+    TMap<FString, TArray<float>> ModelInputs = InputAdapter->ExtractInputs(DeltaTime);
+
 
     //// 2. 运行推理 (拿到低模偏移)
-    //TArray<float> LowResOffsetsRaw;
-    //modelInstance_->Run(ModelInputs, CurrentHiddenState, LowResOffsetsRaw);
+    TMap<FString, TArray<float>> ModelOutputs;
+    RunInference(ModelInputs, CurrentHiddenState, ModelOutputs);
+
 
     //// 3. 映射到高模
     //TArray<FVector> HighResOffsets;

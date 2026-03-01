@@ -48,6 +48,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Cloth Deformer")
 	bool RunInference(const TArray<float> &InputData, TArray<float> &OutputData);
 
+
+	bool RunInference(const TMap<FString, TArray<float>>& InputData, TArray<float>& HiddenState, TMap<FString, TArray<float>>& OutputData);
+
+
 	// 检查模型是否已加载并准备好进行推理。
 	UFUNCTION(BlueprintCallable, Category = "Cloth Deformer")
 	bool IsInitialized() const;
