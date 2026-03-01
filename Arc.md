@@ -1,8 +1,4 @@
-这是一份关于 **Snug Cloth Plugin** 最终架构的完整技术文档。
-
-该插件采用 **双模块架构 (Dual-Module Architecture)**，严格区分了 **运行时 (Runtime)** 和 **编辑器 (Editor)** 的职责。这种设计确保了打包后的游戏包体最小化，同时为开发者提供了强大的编辑器工具。
-
----
+# 整体介绍
 
 ### 1. 运行时模块 (Module: Cloth)
 
@@ -10,7 +6,7 @@
 **依赖**：`Core`, `Engine`, `OnnxRuntime`。
 **打包状态**：包含在最终游戏包 (Shipping Build) 中。
 
-#### A. 核心组件 (The Conductor)
+#### A. 核心组件
 
 * **`UClothDeformerComponent`**
 * **作用**：总指挥。挂载在角色 Actor 上，协调各子系统的运作。
@@ -23,7 +19,7 @@
 
 
 
-#### B. 数据资产 (The Blueprints)
+#### B. Asset
 
 * **`UClothDeformationModelAsset`**
 * **作用**：神经网络的容器。
@@ -53,7 +49,7 @@
 
 * **`FSparseMappingMatrix`**
 * **作用**：数学工具。
-* **职责**：定义了稀疏矩阵的存储格式 (CSR/COO)。提供 `ApplyMapping` 函数，执行  的矩阵乘法运算。
+* **职责**：定义了稀疏矩阵的存储格式 (CSR/COO)。提供 `ApplyMapping` 函数，执行具体的矩阵乘法运算。
 
 
 
@@ -65,7 +61,7 @@
 **依赖**：`UnrealEd`, `Slate`, `AssetTools`, `GeometryCore` 以及 **`Cloth` 模块**。
 **打包状态**：**不** 包含在最终游戏包中 (Editor Only)。
 
-#### A. 用户界面 (The Frontend)
+#### A. 用户界面
 
 * **`SMeshMappingWindow`**
 * **作用**：烘焙工具的主界面。
@@ -78,7 +74,7 @@
 
 
 
-#### B. 策略系统 (The Logic Abstraction)
+#### B. 映射策略
 
 * **`IMeshMappingStrategy`** (接口)
 * **作用**：定义了“如何计算映射”的标准。
@@ -102,16 +98,16 @@
 
 ---
 
-### 3. 数据流全景图 (Data Pipeline)
+### 3. 数据流
 
-#### **阶段一：开发期 (Editor)**
+#### **Editor**
 
 1. **用户** 打开 `SMeshMappingWindow`。
 2. **选择** 低模 (Driver Mesh) 和 高模 (Render Mesh)。
 3. **点击 Bake** -> 调用 `FKnnMappingStrategy`。
 4. **生成** `UMeshMappingAsset` (存储了稀疏矩阵) 并保存到磁盘。
 
-#### **阶段二：运行期 (Runtime Tick)**
+#### **Runtime Tick**
 
 1. **Input**: `UClothDeformerComponent` 呼叫 `Adapter`。
 * *数据*: 骨骼旋转 (Quat) -> 转换 -> Axis-Angle Float Array。
@@ -128,4 +124,5 @@
 
 5. **Render**: Component 将高模位移写入渲染管线，布料产生形变。
 
-这个架构保证了 **高内聚、低耦合**，不仅现在能跑通 SnUG 模型，未来扩展其他 AI 布料模型或更换映射算法也无需重构核心代码。
+
+

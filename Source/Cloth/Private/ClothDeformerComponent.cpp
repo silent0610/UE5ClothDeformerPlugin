@@ -3,6 +3,8 @@
 #include "MeshMappingAsset.h"
 #include "Interfaces/IPluginManager.h"
 #include "HAL/PlatformFilemanager.h"
+#include "Components/DynamicMeshComponent.h"
+
 
 // 包含ONNX Runtime头文件用于测试
 #if PLATFORM_WINDOWS && PLATFORM_64BITS
@@ -130,43 +132,76 @@ void UClothDeformerComponent::TickComponent(float DeltaTime, ELevelTick TickType
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    // 确保已初始化且有测试数据
-    if (IsInitialized() && TestInputArray.Num() > 0)
-    {
-        if (RunInference(TestInputArray, TestOutputArray))
-        {
-            // For debugging, log the first element of the output array
-            if (TestOutputArray.Num() > 0)
-            {
-                UE_LOG(LogTemp, Log, TEXT("Inference successful. First output element: %f"), TestOutputArray[0]);
-            }
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("RunInference failed in TickComponent."));
-        }
-    }
+	// 这部分是测试代码，确保推理流程在Tick中正常工作。
+    //// 确保已初始化且有测试数据
+    //if (IsInitialized() && TestInputArray.Num() > 0)
+    //{
+    //    if (RunInference(TestInputArray, TestOutputArray))
+    //    {
+    //        // For debugging, log the first element of the output array
+    //        if (TestOutputArray.Num() > 0)
+    //        {
+    //            UE_LOG(LogTemp, Log, TEXT("Inference successful. First output element: %f"), TestOutputArray[0]);
+    //        }
+    //    }
+    //    else
+    //    {
+    //        UE_LOG(LogTemp, Warning, TEXT("RunInference failed in TickComponent."));
+    //    }
+    //}
+
     // 1. 获取输入
     TMap<FString, TArray<float>> ModelInputs = InputAdapter->ExtractInputs(DeltaTime);
 
 
-    //// 2. 运行推理 (拿到低模偏移)
-    TMap<FString, TArray<float>> ModelOutputs;
-    RunInference(ModelInputs, CurrentHiddenState, ModelOutputs);
+    // 2. 运行推理 (拿到低模偏移)
+    TMap<FString, TArray<float>> ModelOutputs; // 也可以是称为 低模映射
+    if (!RunInference(ModelInputs, CurrentHiddenState, ModelOutputs))
+    {
+        // 推理失败，保持当前姿态，直接退出
+        return;
+    }
 
+    TArray<float> lowResRawOffsets;
 
-    //// 3. 映射到高模
-    //TArray<FVector> HighResOffsets;
-    //// (此处需将 LowResOffsetsRaw 转换为 FVector 数组)
-    //MappingAsset->MappingData.ApplyMapping(LowResLowResVectors, HighResOffsets);
+    for (const auto& pair : ModelOutputs)
+    {
+        lowResRawOffsets = pair.Value;
+        break;
+    }
 
-    //// 4. [新增工作] 直接在这里应用到网格
-    //UDynamicMeshComponent* TargetMesh = GetOwner()->FindComponentByClass<UDynamicMeshComponent>();
-    //if (TargetMesh)
-    //{
-    //    // 假设使用 DynamicMesh，直接更新顶点
-    //    // (伪代码：将 HighResOffsets 加到 BasePose 上并通知更新)
-    //    UpdateDynamicMesh(TargetMesh, HighResOffsets);
-    //}
+    int32 numLowResVerts = lowResRawOffsets.Num() / 3;
+    TArray<FVector> lowResVectors;
+    lowResVectors.SetNumUninitialized(numLowResVerts);
 
+    for (int32 i = 0; i < numLowResVerts; ++i)
+    {
+        // 可能需要在这里做坐标系转换
+        lowResVectors[i] = FVector(
+            lowResRawOffsets[i * 3 + 0], // X
+            lowResRawOffsets[i * 3 + 1], // Y
+            lowResRawOffsets[i * 3 + 2]  // Z
+        );
+    }
+
+    // 3. 映射到高模
+    TArray<FVector> HighResOffsets;
+    
+    if (!MappingAsset->MappingData.ApplyMapping(lowResVectors,HighResOffsets))
+    {
+        UE_LOG(LogTemp, Error, TEXT("Tick: ApplyMapping 失败"));
+        return;
+    }
+    
+    USkeletalMeshComponent* targetMesh = GetOwner()->FindComponentByClass<USkeletalMeshComponent>();
+    if (targetMesh)
+    {
+        UpdateMesh(targetMesh, HighResOffsets);
+    }
+}
+
+void UClothDeformerComponent::UpdateMesh(USkeletalMeshComponent* targetMesh, const TArray<FVector>& HighResOffsets)
+{
+    // 感觉有点难写, 先留空
+    ;
 }

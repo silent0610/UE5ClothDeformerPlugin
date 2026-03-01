@@ -10,10 +10,11 @@
 #include "InputAdapterBase.h"
 #include "ClothDeformerComponent.generated.h"
 
+
 // Forward-declare our classes
 class UClothDeformationModelAsset;
 class FOnnxModelInstance;
-
+class UDynamicMeshComponent;
 
 /**
  * UClothDeformerComponent
@@ -74,7 +75,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Cloth Deformer")
 	void Reset();
 
+	
+
 private:
+	void UpdateMesh(USkeletalMeshComponent* targetMesh, const TArray<FVector>& HighResOffsets);
+	
 	bool bIsInitialized{false};
 	// 执行实际推理的模型的运行时实例。
 	TUniquePtr<FOnnxModelInstance> modelInstance_{nullptr};

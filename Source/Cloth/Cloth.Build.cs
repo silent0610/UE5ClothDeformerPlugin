@@ -42,7 +42,9 @@ public class Cloth : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-                "Engine"
+                "Engine",
+                "GeometryCore",       // FDynamicMesh3 等底层数学数据结构
+				"GeometryFramework"   // UDynamicMeshComponent 所在的组件模块
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
