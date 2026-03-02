@@ -33,8 +33,13 @@ public class Cloth : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core"
-			}
+				"Core",
+                "ComputeFramework",
+                "RenderCore",
+                "RHI",
+                "OptimusCore"
+
+            }
 			);
 		PublicSystemLibraries.AddRange(new string[] { "dxcore.lib", "directml.lib" });	
 		

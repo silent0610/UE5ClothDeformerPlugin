@@ -202,6 +202,41 @@ void UClothDeformerComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 void UClothDeformerComponent::UpdateMesh(USkeletalMeshComponent* targetMesh, const TArray<FVector>& HighResOffsets)
 {
-    // 感觉有点难写, 先留空
-    ;
+    
+    if (HighResOffsets.Num() == 0 || !targetMesh)
+    {
+        return;
+    }
+
+    // GPU 使用float, 而FVector是Double, 需要转换, 
+    // TODO 优化移除转换, 需要修改相关函数声明
+    TArray<FVector3f> FloatData;
+    FloatData.SetNumUninitialized(HighResOffsets.Num());
+    for (int32 i = 0; i < HighResOffsets.Num(); ++i)
+    {
+        FloatData[i] = (FVector3f)HighResOffsets[i];
+    }
+    ENQUEUE_RENDER_COMMAND(UploadClothOffsets)([this,GPUData=MoveTemp(FloatData)](FRHICommandListImmediate& RHICmdList)
+        {
+            uint32 BufferSize = GPUData.Num() * sizeof(FVector3f);
+
+            if (!OffsetBuffer.IsValid() || OffsetBuffer->GetSize() != BufferSize)
+            {
+                FRHIBufferCreateDesc BufferDesc = FRHIBufferCreateDesc::Create(TEXT("MLClothOffsetBuffer"), BufferSize, sizeof(FVector3f), BUF_ShaderResource | BUF_Dynamic | BUF_StructuredBuffer);
+                BufferDesc.SetInitialState(ERHIAccess::SRVMask);
+                // BUF_ShaderResource 允许 Shader 读取，BUF_Dynamic 表示我们会频繁(每帧)更新它
+                
+                OffsetBuffer = RHICmdList.CreateBuffer(BufferDesc);
+                // 为这块内存创建 SRV 视图
+                OffsetBufferSRV = RHICmdList.CreateShaderResourceView(OffsetBuffer, FRHIViewDesc::CreateBufferSRV()
+                    .SetTypeFromBuffer(OffsetBuffer));
+            }
+
+            // CPU GPU 拷贝
+            void* LockedData = RHICmdList.LockBuffer(OffsetBuffer, 0, BufferSize, RLM_WriteOnly);
+            FMemory::Memcpy(LockedData, GPUData.GetData(), BufferSize);
+            RHICmdList.UnlockBuffer(OffsetBuffer);
+
+        });
+  
 }

@@ -57,6 +57,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Cloth Deformer")
 	bool IsInitialized() const;
 
+	FShaderResourceViewRHIRef GetOffsetBufferSRV() const { return OffsetBufferSRV; }
+
 	// 该组件应用的 ONNX 模型资产
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloth Deformer|Source")
 	UClothDeformationModelAsset *modelAsset_{nullptr};
@@ -89,4 +91,8 @@ private:
 	TArray<float> CurrentHiddenState;
 	const int32 HiddenLayerSize = 256;
 
+private:
+	FBufferRHIRef OffsetBuffer; //Buffer
+
+	FShaderResourceViewRHIRef OffsetBufferSRV; //BufferView
 };

@@ -22,8 +22,18 @@
 		},
 		{
 			"Name": "ClothEditor",
-			"Type": "Editor",        
-			"LoadingPhase": "PostEngineInit" 
-    	}
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ComputeFramework",
+			"Enabled": true
+		},
+		{
+			"Name": "Optimus",
+			"Enabled": true
+		}
 	]
 }
