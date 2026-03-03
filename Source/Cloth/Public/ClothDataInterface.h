@@ -26,6 +26,7 @@ class UClothDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 public:
+	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	virtual FString GetDisplayName() const override;
 	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
 	virtual TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
