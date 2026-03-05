@@ -15,7 +15,12 @@
     - [ ] 测试实时推理
   - [x] 模型输出隐藏层处理
   
-- [ ] 应用偏移模块
+- [ ] 应用偏移模块\
+  
+  - [ ] 参考文献https://zhuanlan.zhihu.com/p/632849525, UE5 Plugin ML Deformer Vertex Delta Model
+  
+  - [ ] 能否将映射部分`Applymapping`转移到GPU?
+  
   - [x] ~~先尝试实现在 CPU 上修改顶点~~ **失败, 服装顶点存储在显存中**
   
   - [ ] 需要实现 `Update` 函数 使用 `ComputeShader` 将偏移应用到 `USkeletalMeshComponent`
@@ -26,3 +31,4 @@
   - [ ] 优化单精度双精度转换
   
     
+  
