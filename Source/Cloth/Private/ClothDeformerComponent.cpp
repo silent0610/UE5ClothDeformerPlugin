@@ -54,6 +54,15 @@ void UClothDeformerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
     Super::EndPlay(EndPlayReason);
 }
+uint32 UClothDeformerComponent::GetVertexCount() const
+{
+    if (MappingAsset!=nullptr)
+    {
+        // NumRow 对应高模顶点数，也就是最终要应用偏移的顶点总数
+        return MappingAsset->MappingData.NumRow;
+    }
+    return 0;
+}
 bool UClothDeformerComponent::Initialize()
 {
     try

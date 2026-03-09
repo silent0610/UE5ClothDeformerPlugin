@@ -34,6 +34,7 @@ public class Cloth : ModuleRules
 			new string[]
 			{
 				"Core",
+                "Projects",
                 "ComputeFramework",
                 "RenderCore",
                 "RHI",

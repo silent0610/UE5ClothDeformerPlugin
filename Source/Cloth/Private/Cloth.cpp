@@ -79,6 +79,31 @@ void FClothModule::StartupModule()
 	{
 		UE_LOG(LogTemp, Error, TEXT("Unknown exception in ONNX Runtime initialization"));
 	}
+
+	// 1. 获取插件对象
+	TSharedPtr<IPlugin> ClothPlugin = IPluginManager::Get().FindPlugin(TEXT("Cloth"));
+	if (ClothPlugin.IsValid())
+	{
+		// 2. 获取插件的物理根目录 (e.g., .../Plugins/Cloth)
+		FString PluginBaseDir = ClothPlugin->GetBaseDir();
+
+		// 3. 精准拼接 Shaders 文件夹路径
+		// 注意：只需拼接 "Shaders" 即可，BaseDir 已经包含了之前的路径
+		FString ShaderDir = FPaths::Combine(PluginBaseDir, TEXT("Shaders"));
+
+		// 4. 打印到 Log，方便你出错了去 Output Log 确认路径到底对不对
+		UE_LOG(LogTemp, Log, TEXT("Cloth Plugin Shader Dir: %s"), *ShaderDir);
+
+		// 5. 检查文件夹是否存在（防止崩溃）
+		if (FPaths::DirectoryExists(ShaderDir))
+		{
+			AddShaderSourceDirectoryMapping(TEXT("/Plugin/Cloth"), ShaderDir);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Cloth Shader directory NOT found at: %s"), *ShaderDir);
+		}
+	}
 }
 
 void FClothModule::ShutdownModule()

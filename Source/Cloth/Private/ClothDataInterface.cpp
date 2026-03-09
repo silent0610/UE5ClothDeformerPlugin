@@ -3,26 +3,37 @@
 #include "ShaderParameterMetadataBuilder.h"
 #include "OptimusDataDomain.h"
 
+BEGIN_SHADER_PARAMETER_STRUCT(FClothDataInterfaceParameters, )
+	// 顺序建议：基础类型在前，资源（SRV/UAV）在后，这是引擎的推荐对齐方式
+	SHADER_PARAMETER(uint32, NumVertices)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float3>, ClothOffsets)
+END_SHADER_PARAMETER_STRUCT()
+ 
 class FClothDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FClothDataProviderProxy(FShaderResourceViewRHIRef InOffsetSRV)
-		: OffsetSRV(InOffsetSRV)
+	// 增加 NumVertices 参数
+	FClothDataProviderProxy(FShaderResourceViewRHIRef InOffsetSRV, uint32 InNumVertices)
+		: OffsetSRV(InOffsetSRV), NumVertices(InNumVertices)
 	{
 	}
-	virtual void GatherDispatchData(FDispatchData const& InDispatchData) 
-	{
-		if (OffsetSRV.IsValid() && InDispatchData.ParameterBuffer != nullptr)	
-		{// 1. 找到属于我们这个节点的内存起始位置 (Base + Offset)
-			uint8* MyMemoryStart = InDispatchData.ParameterBuffer + InDispatchData.ParameterBufferOffset;
 
-			// 2. 在这块专属内存中写入 SRV 裸指针
-			FRHIShaderResourceView** SRVMemorySlot = (FRHIShaderResourceView**)MyMemoryStart;
-			*SRVMemorySlot = OffsetSRV.GetReference();
+	virtual void GatherDispatchData(FDispatchData const& InDispatchData) override
+	{
+		if (OffsetSRV.IsValid())
+		{
+			// 【核心改动】使用模板视图自动填充数据
+			auto ParameterArray = MakeStridedParameterView<FClothDataInterfaceParameters>(InDispatchData);
+			for (int32 i = 0; i < ParameterArray.Num(); ++i)
+			{
+				ParameterArray[i].NumVertices = NumVertices;
+				ParameterArray[i].ClothOffsets = OffsetSRV;
+			}
 		}
 	}
 private:
 	FShaderResourceViewRHIRef OffsetSRV;
+	uint32 NumVertices;
 };
 
 // =====================================================================
@@ -32,21 +43,21 @@ private:
 FComputeDataProviderRenderProxy* UClothDataProvider::GetRenderProxy()
 {
 	FShaderResourceViewRHIRef SRV = nullptr;
+	uint32 NumVertices = 0;
 	if (ClothComponent)
 	{
-		// 调用你组件中的 Getter
 		SRV = ClothComponent->GetOffsetBufferSRV();
+		NumVertices = ClothComponent->GetVertexCount(); // 假设你组件里有这个 Getter
 	}
-	return new FClothDataProviderProxy(SRV);
+	return new FClothDataProviderProxy(SRV, NumVertices);
 }
-
 // =====================================================================
 // UClothDataInterface 实现
 // =====================================================================
 
 FString UClothDataInterface::GetDisplayName() const
 {
-	return TEXT("AI Cloth Offsets");
+	return TEXT("Snug Cloth Offsets");
 }
 
 TArray<FOptimusCDIPinDefinition> UClothDataInterface::GetPinDefinitions() const
@@ -58,7 +69,7 @@ TArray<FOptimusCDIPinDefinition> UClothDataInterface::GetPinDefinitions() const
 	Pins.Add(FOptimusCDIPinDefinition(
 		TEXT("Offset"),
 		TEXT("ReadClothOffset"),
-		FName(TEXT("Vertex")),
+		Optimus::DomainName::Vertex,
 		TEXT("ReadVertexCount")
 	));
 
@@ -67,59 +78,51 @@ TArray<FOptimusCDIPinDefinition> UClothDataInterface::GetPinDefinitions() const
 TSubclassOf<UActorComponent> UClothDataInterface::GetRequiredComponentClass() const
 {
 	return UClothDeformerComponent::StaticClass();
+	//return nullptr;
 }
 
 void UClothDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
-	// 1. 原本的读取偏移函数 (带一个 uint VertexIndex 输入)
-	FShaderFunctionDefinition FnRead;
-	FnRead.Name = TEXT("ReadClothOffset");
-	FnRead.bHasReturnType = true;
+	// 1. 声明：读取顶点总数的函数
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadVertexCount")) // 对应我们之前定义的计数函数名
+		.AddReturnType(EShaderFundamentalType::Uint);
 
-	FShaderParamTypeDefinition ReturnParam;
-	ReturnParam.TypeDeclaration = TEXT("float3");
-	ReturnParam.Name = TEXT("ReturnValue");
-	FnRead.ParamTypes.Add(ReturnParam);
-
-	FShaderParamTypeDefinition IndexParam;
-	IndexParam.TypeDeclaration = TEXT("uint");
-	IndexParam.Name = TEXT("VertexIndex");
-	FnRead.ParamTypes.Add(IndexParam);
-
-	OutFunctions.Add(FnRead);
-
-	// 2. 【新增】获取顶点总数的函数 (无输入，返回 uint)
-	FShaderFunctionDefinition FnCount;
-	FnCount.Name = TEXT("ReadVertexCount");
-	FnCount.bHasReturnType = true;
-
-	FShaderParamTypeDefinition CountReturnParam;
-	CountReturnParam.TypeDeclaration = TEXT("uint");
-	CountReturnParam.Name = TEXT("ReturnValue");
-	FnCount.ParamTypes.Add(CountReturnParam);
-
-	OutFunctions.Add(FnCount);
+	// 2. 声明：读取 AI 布料偏移的函数
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadClothOffset")) // 对应我们引脚定义里的函数名
+		.AddReturnType(EShaderFundamentalType::Float, 3) // 返回偏移向量 float3
+		.AddParam(EShaderFundamentalType::Uint); // 输入参数是顶点索引 VertexIndex
 }
 
+void UClothDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
+{
+	// 这一行代码会自动生成 UID_NumVertices 和 UID_ClothOffsets 两个 GPU 变量
+	InOutBuilder.AddNestedStruct<FClothDataInterfaceParameters>(UID);
+}
+
+const TCHAR* UClothDataInterface::GetShaderVirtualPath() const
+{
+	return TemplateFilePath;
+}
+void UClothDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	GetShaderFileHash(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM6).AppendString(InOutKey);
+}
 void UClothDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
 {
-	// 1. 声明带 UID 前缀的 Buffer
-	OutHLSL += FString::Printf(TEXT("StructuredBuffer<float3> %s_ClothOffsets;\n"), *InDataInterfaceName);
+	// 1. 定义替换参数表
+	TMap<FString, FStringFormatArg> TemplateArgs = {
+		{ TEXT("DataInterfaceName"), InDataInterfaceName },
+	};
 
-	// 2. 【新增】实现顶点计数函数
-	OutHLSL += FString::Printf(TEXT("uint %s_ReadVertexCount()\n"), *InDataInterfaceName);
-	OutHLSL += TEXT("{\n");
-	OutHLSL += TEXT("    uint NumStructs, Stride;\n");
-	// 直接获取 Buffer 的大小，极致高效
-	OutHLSL += FString::Printf(TEXT("    %s_ClothOffsets.GetDimensions(NumStructs, Stride);\n"), *InDataInterfaceName);
-	OutHLSL += TEXT("    return NumStructs;\n");
-	OutHLSL += TEXT("}\n");
-
-	// 3. 实现读取偏移函数
-	OutHLSL += FString::Printf(TEXT("float3 %s_ReadClothOffset(uint VertexIndex)\n"), *InDataInterfaceName);
-	OutHLSL += TEXT("{\n");
-	OutHLSL += FString::Printf(TEXT("    return %s_ClothOffsets[VertexIndex];\n"), *InDataInterfaceName);
-	OutHLSL += TEXT("}\n");
+	// 2. 从虚拟路径加载文件内容
+	FString TemplateFile;
+	if (LoadShaderSourceFile(TemplateFilePath, EShaderPlatform::SP_PCD3D_SM6, &TemplateFile, nullptr))
+	{
+		// 3. 执行格式化替换并追加到输出
+		OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	}
 }
 
 UComputeDataProvider* UClothDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
@@ -137,11 +140,4 @@ UComputeDataProvider* UClothDataInterface::CreateDataProvider(TObjectPtr<UObject
 	}
 
 	return Provider;
-}
-void UClothDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
-{
-	// 告诉引擎：在这块内存里预留一个 SRV 的位置，对应 HLSL 里的 ClothOffsets
-	FString BufferName = FString::Printf(TEXT("%s_ClothOffsets"), UID);
-
-	InOutBuilder.AddBufferSRV(*BufferName, TEXT("StructuredBuffer<float3>"));
 }

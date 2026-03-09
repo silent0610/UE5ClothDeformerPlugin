@@ -1,0 +1,17 @@
+uint {DataInterfaceName}_NumVertices;
+StructuredBuffer<float3> {DataInterfaceName}_ClothOffsets;
+
+uint {DataInterfaceName}_ReadVertexCount()
+{
+    return {DataInterfaceName}_NumVertices;
+}
+
+float3 {DataInterfaceName}_ReadClothOffset(uint VertexIndex)
+{
+    // 鲁棒性检查：防止索引越界导致显卡驱动重置
+    if (VertexIndex < {DataInterfaceName}_NumVertices)
+    {
+        return {DataInterfaceName}_ClothOffsets[VertexIndex];
+    }
+    return float3(0.0f, 0.0f, 0.0f);
+}

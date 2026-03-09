@@ -58,6 +58,7 @@ public:
 	bool IsInitialized() const;
 
 	FShaderResourceViewRHIRef GetOffsetBufferSRV() const { return OffsetBufferSRV; }
+	uint32 GetVertexCount() const;
 
 	// 该组件应用的 ONNX 模型资产
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cloth Deformer|Source")

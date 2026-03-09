@@ -46,6 +46,6 @@ public:
      */
     void SetFromTriplet(const TArray<FTriplet> &Triplets);
 
-    // 从低模映射到低模
+    // 从低模映射到高模
     bool ApplyMapping(const TArray<FVector> &InLowResOffsets, TArray<FVector> &OutHighResOffsets) const;
 };
