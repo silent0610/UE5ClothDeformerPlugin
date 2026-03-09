@@ -26,6 +26,7 @@ class UClothDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 public:
+
 	const TCHAR* TemplateFilePath = TEXT("/Plugin/Cloth/ClothDeformer.ush");
 	virtual const TCHAR* GetShaderVirtualPath() const override;
 	virtual void GetShaderHash(FString& InOutKey) const;

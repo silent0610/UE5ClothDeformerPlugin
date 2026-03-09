@@ -21,7 +21,7 @@ class UDynamicMeshComponent;
  * 一个ActorComponent，为ONNX模型推理提供了易于使用的接口。
  * 它持有一个对UClothDeformationModelAsset的引用，并管理FOnnxModelInstance的生命周期以在游戏过程中执行推理。
  */
-UCLASS(ClassGroup = (AI), meta = (BlueprintSpawnableComponent))
+UCLASS(	Blueprintable, ClassGroup = Component, BlueprintType, meta = (BlueprintSpawnableComponent))
 class CLOTH_API UClothDeformerComponent : public UActorComponent
 {
 	GENERATED_BODY()
