@@ -4,7 +4,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Components/DynamicMeshComponent.h"
-
+#include "SnugInputAdapter.h"
 
 // 包含ONNX Runtime头文件用于测试
 #if PLATFORM_WINDOWS && PLATFORM_64BITS
@@ -35,6 +35,17 @@ void UClothDeformerComponent::BeginPlay()
 {
     Super::BeginPlay();
 
+    // 创建并初始化输入适配器
+    InputAdapter = MakeUnique<FSnugInputAdapter>();
+    if (USkeletalMeshComponent* SkelComp = GetOwner()->FindComponentByClass<USkeletalMeshComponent>())
+    {
+        InputAdapter->Initialize(SkelComp);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ClothDeformerComponent: No SkeletalMeshComponent found on owner"));
+    }
+
     // 尝试初始化ONNX模型
     UE_LOG(LogTemp, Log, TEXT("Cloth Deformer Component BeginPlay - attempting to initialize model..."));
 
@@ -50,6 +61,7 @@ void UClothDeformerComponent::BeginPlay()
 void UClothDeformerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     // 清理资源
+    InputAdapter.Reset();
     modelInstance_.Reset();
 
     Super::EndPlay(EndPlayReason);
@@ -133,6 +145,10 @@ bool UClothDeformerComponent::IsInitialized() const
 
 void UClothDeformerComponent::Reset()
 {
+    if (InputAdapter.IsValid())
+    {
+        InputAdapter->Reset();
+    }
     modelInstance_.Reset();
     bIsInitialized = false;
     UE_LOG(LogTemp, Log, TEXT("ONNX Component reset"));
@@ -158,6 +174,11 @@ void UClothDeformerComponent::TickComponent(float DeltaTime, ELevelTick TickType
     //        UE_LOG(LogTemp, Warning, TEXT("RunInference failed in TickComponent."));
     //    }
     //}
+
+    if (!InputAdapter.IsValid())
+    {
+        return;
+    }
 
     // 1. 获取输入
     TMap<FString, TArray<float>> ModelInputs = InputAdapter->ExtractInputs(DeltaTime);
