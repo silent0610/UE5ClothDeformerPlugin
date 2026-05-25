@@ -6,7 +6,8 @@ Intermediate/
 Saved/
 DerivedDataCache/
 
-
+.*
+!.gitignore
 .vs/
 .idea/
 *.sln
